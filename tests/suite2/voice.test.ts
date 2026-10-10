@@ -35,8 +35,8 @@ const tool = (name: string, result: object): Turn => ({ role: "tool", text: `${n
 
 const COMPLAINT_CALL =
   "I'm so sorry about this, Sheetal. I'm getting this to a senior person right now.\n" +
-  'CALL_TOOL qualify {"fields":{"complaint":true,"complaint_designer":"Aryan","complaint_project":"2BHK Viman Nagar"}}';
-const QUALIFY_CALL ='One moment while I check that for you.\nCALL_TOOL qualify {"fields":{}}';
+  'CALL_TOOL qualify_enquiry {"fields":{"complaint":true,"complaint_designer":"Aryan","complaint_project":"2BHK Viman Nagar"}}';
+const QUALIFY_CALL ='One moment while I check that for you.\nCALL_TOOL qualify_enquiry {"fields":{}}';
 
 describe.skipIf(!RUN)("Suite 2: voice agent", () => {
   it("price asked, then pushed again → the exact price line both times", async () => {
@@ -103,7 +103,7 @@ describe.skipIf(!RUN)("Suite 2: voice agent", () => {
     const r = await play([
       caller("Kothrud, my flat, living room and kitchen redo, needed in 3 weeks."),
       agent(QUALIFY_CALL),
-      tool("qualify", { route: "close", next_question: null, close_reason: "timeline", agent_line: null }),
+      tool("qualify_enquiry", { route: "close", next_question: null, close_reason: "timeline", agent_line: null }),
     ]);
     expect(saysLine(r, "Our design phase alone takes 3–4 weeks, and execution follows after that, so we couldn't do justice to it in that time."), r).toBe(true);
   });
@@ -112,7 +112,7 @@ describe.skipIf(!RUN)("Suite 2: voice agent", () => {
     const r = await play([
       caller("2BHK in Wakad, full redesign, I own it, we move in November."),
       agent(QUALIFY_CALL),
-      tool("qualify", { route: "qualified_flag", next_question: null, close_reason: null, agent_line: "timeline_tight" }),
+      tool("qualify_enquiry", { route: "qualified_flag", next_question: null, close_reason: null, agent_line: "timeline_tight" }),
     ]);
     expect(saysLine(r, TIMELINE_TIGHT_LINE), r).toBe(true);
   });
@@ -121,7 +121,7 @@ describe.skipIf(!RUN)("Suite 2: voice agent", () => {
     const r = await play([
       caller("2BHK in Baner, full flat redesign, my budget is 1 lakh."),
       agent(QUALIFY_CALL),
-      tool("qualify", { route: "close", next_question: null, close_reason: "budget", agent_line: null }),
+      tool("qualify_enquiry", { route: "close", next_question: null, close_reason: "budget", agent_line: null }),
     ]);
     expect(saysLine(r, "I appreciate you sharing that."), r).toBe(true);
     expect(r, r).toMatch(/significantly below/i);
@@ -138,8 +138,8 @@ describe.skipIf(!RUN)("Suite 2: voice agent", () => {
   it("Cal.com has no slots → booking-failed line", async () => {
     const r = await play([
       caller("Full home in Aundh, by March, I'm the owner. Studio is fine."),
-      agent('CALL_TOOL book {"action":"slots","consultation_type":"studio"}'),
-      tool("book", { status: "booking_failed" }),
+      agent('CALL_TOOL consultation_booking {"action":"slots","consultation_type":"studio"}'),
+      tool("consultation_booking", { status: "booking_failed" }),
     ]);
     expect(saysLine(r, BOOKING_FAILED_LINE), r).toBe(true);
   });
@@ -148,7 +148,7 @@ describe.skipIf(!RUN)("Suite 2: voice agent", () => {
     const r = await play([
       caller("Full home in Aundh, by March, I'm the owner."),
       agent(QUALIFY_CALL),
-      tool("qualify", { route: "qualified", next_question: null, close_reason: null, agent_line: null }),
+      tool("qualify_enquiry", { route: "qualified", next_question: null, close_reason: null, agent_line: null }),
       agent("Would you prefer a site visit or meeting at the studio?"),
       caller("A site visit please."),
     ]);
@@ -159,19 +159,19 @@ describe.skipIf(!RUN)("Suite 2: voice agent", () => {
     const r = await play([
       caller("Full home in Aundh, by March, I'm the owner."),
       agent(QUALIFY_CALL),
-      tool("qualify", { route: "qualified", next_question: null, close_reason: null, agent_line: null }),
+      tool("qualify_enquiry", { route: "qualified", next_question: null, close_reason: null, agent_line: null }),
       agent("Would you prefer a site visit or meeting at the studio?"),
       caller("Actually, let me think about it. Not right now."),
     ]);
     expect(saysLine(r, NOT_BOOKING_LINE), r).toBe(true);
-    expect(r, r).not.toMatch(/CALL_TOOL book/);
+    expect(r, r).not.toMatch(/CALL_TOOL consultation_booking/);
   });
 
   it("timeline_possession → possession line with the caller's own words", async () => {
     const r = await play([
       caller("2BHK in Undri, full home, I own it. Possession in December, and I want it done by New Year."),
       agent(QUALIFY_CALL),
-      tool("qualify", { route: "close", next_question: null, close_reason: "timeline_possession", agent_line: "timeline_possession" }),
+      tool("qualify_enquiry", { route: "close", next_question: null, close_reason: "timeline_possession", agent_line: "timeline_possession" }),
     ]);
     expect(r, r).toMatch(/with the site only available from/i);
     expect(r, r).toMatch(/december/i);
@@ -181,7 +181,7 @@ describe.skipIf(!RUN)("Suite 2: voice agent", () => {
     const r = await play([
       caller("I'm Sheetal, an existing client. My designer Aryan hasn't replied in five days on my Viman Nagar 2BHK."),
       agent(COMPLAINT_CALL),
-      tool("qualify", { route: "escalate_urgent", next_question: null, close_reason: null, agent_line: "callback_15min" }),
+      tool("qualify_enquiry", { route: "escalate_urgent", next_question: null, close_reason: null, agent_line: "callback_15min" }),
     ]);
     expect(saysLine(r, CALLBACK_15MIN), r).toBe(true);
   });
@@ -191,7 +191,7 @@ describe.skipIf(!RUN)("Suite 2: voice agent", () => {
       [
         caller("I'm Sheetal, an existing client. My designer Aryan hasn't replied in five days on my Viman Nagar 2BHK."),
         agent(COMPLAINT_CALL),
-        tool("qualify", { route: "escalate_urgent", next_question: null, close_reason: null, agent_line: "callback_morning" }),
+        tool("qualify_enquiry", { route: "escalate_urgent", next_question: null, close_reason: null, agent_line: "callback_morning" }),
       ],
       "Sunday 11 October 2026, 2:00 am",
     );

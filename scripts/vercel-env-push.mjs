@@ -26,7 +26,9 @@ const childEnv = { ...process.env, NO_UPDATE_NOTIFIER: "1", VERCEL_TELEMETRY_DIS
 // Optional: `--from KEY` resumes from that key.
 const fromIdx = process.argv.indexOf("--from");
 const start = fromIdx > 0 ? Math.max(0, KEYS.indexOf(process.argv[fromIdx + 1])) : 0;
-for (const key of KEYS.slice(start)) {
+const onlyIdx = process.argv.indexOf("--only");
+const selected = onlyIdx > 0 ? [process.argv[onlyIdx + 1]] : KEYS.slice(start);
+for (const key of selected) {
   const value = env[key];
   if (!value) {
     console.log(`skip   ${key} (not in .env)`);

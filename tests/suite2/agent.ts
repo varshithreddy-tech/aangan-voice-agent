@@ -10,7 +10,7 @@ const HARNESS_NOTE = `
 
 === TEST HARNESS (not part of the real call) ===
 This is a text simulation of a phone call. Reply with ONLY the words you would say next, nothing else.
-When you would call a tool, put it on the LAST line as: CALL_TOOL <qualify|book> <json arguments>. You may say something before it (as you would on a real call), but nothing after it.
+When you would call a tool, put it on the LAST line as: CALL_TOOL <qualify_enquiry|consultation_booking> <json arguments>. You may say something before it (as you would on a real call), but nothing after it.
 Messages starting with TOOL_RESULT are what the tool returned; act on them.
 The current time in Pune is {{NOW}}.`;
 
