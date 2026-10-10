@@ -14,7 +14,7 @@
 // ============================================================================
 import { envOptional } from "./env";
 import type { EndReason } from "./callEnded";
-import type { QualifyRequest, QualifyResponse, TranscriptTurn } from "./types";
+import type { Fields, QualifyRequest, QualifyResponse, TranscriptTurn } from "./types";
 
 export interface BookRequest {
   call_id: string;
@@ -97,12 +97,63 @@ export function debugLogRequest(route: string, headers: Headers, body: unknown):
   console.log(`[vaani-debug] ${route} headers=${JSON.stringify(headerNames)} body=${JSON.stringify(body).slice(0, 4000)}`);
 }
 
+/**
+ * The voice model fills tool parameters itself and doesn't always use our exact names
+ * (Suite 2 caught "area", "completion_date", "home_or_office", "caller_name").
+ * Accept flat parameters or a nested `fields` object, and map common aliases.
+ */
+const FIELD_ALIASES: Record<string, keyof Fields> = {
+  name: "name", caller_name: "name", customer_name: "name", full_name: "name",
+  space_type: "space_type", home_or_office: "space_type", property_type: "space_type", type: "space_type",
+  scope: "scope", project_scope: "scope", work: "scope", rooms: "scope", requirement: "scope",
+  locality: "locality", area: "locality", location: "locality", site_location: "locality", city: "locality", property_location: "locality",
+  completion_text: "completion_text", completion_date: "completion_text", deadline: "completion_text", timeline: "completion_text", completion: "completion_text",
+  site_available_text: "site_available_text", site_availability: "site_available_text", possession: "site_available_text", possession_date: "site_available_text", site_available: "site_available_text",
+  designed_area_sqft: "designed_area_sqft", sqft: "designed_area_sqft", area_sqft: "designed_area_sqft", size_sqft: "designed_area_sqft",
+  flat_area_sqft: "flat_area_sqft", decision_maker: "decision_maker",
+  volunteered_budget_inr: "volunteered_budget_inr", budget: "volunteered_budget_inr",
+  consultation_type: "consultation_type", site_address: "site_address", address: "site_address",
+  complaint: "complaint", complaint_designer: "complaint_designer", designer: "complaint_designer",
+  complaint_project: "complaint_project", language_issue: "language_issue", source: "source",
+};
+
+function normaliseFields(b: Record<string, unknown>): Partial<Fields> {
+  const raw: Record<string, unknown> = {
+    ...b,
+    ...(typeof b.fields === "string" ? (JSON.parse(b.fields) as Record<string, unknown>) : ((b.fields as Record<string, unknown>) ?? {})),
+  };
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    let key = FIELD_ALIASES[k.toLowerCase()];
+    if (!key || v === null || v === undefined || v === "") continue;
+    // "area" can mean the locality or the size: a number means size.
+    if (key === "locality" && /^\s*~?\d[\d,.]*\s*(sq\.?\s*ft|sqft|square feet)?\s*$/i.test(String(v))) key = "designed_area_sqft";
+    if (key in out && FIELD_ALIASES[k.toLowerCase()] !== k.toLowerCase()) continue; // an exact name beats an alias
+    out[key] = v;
+  }
+  // Light value clean-up for the enum-ish fields.
+  const st = String(out.space_type ?? "").toLowerCase();
+  if (st) out.space_type = /office|commercial|clinic|studio/.test(st) ? "office" : /home|flat|apartment|house|villa|residen/.test(st) ? "home" : "other";
+  const dm = String(out.decision_maker ?? "").toLowerCase();
+  if (dm) out.decision_maker = /someone|other|parent|spouse|not/.test(dm) ? "someone_else" : /author/.test(dm) ? "authorised" : "self";
+  const ct = String(out.consultation_type ?? "").toLowerCase();
+  if (ct) out.consultation_type = /site|visit|home/.test(ct) ? "site_visit" : "studio";
+  for (const k of ["complaint", "language_issue"] as const) if (k in out) out[k] = out[k] === true || out[k] === "true";
+  for (const k of ["designed_area_sqft", "flat_area_sqft"] as const) {
+    if (k in out) {
+      const n = Number(String(out[k]).replace(/[^\d.]/g, ""));
+      out[k] = Number.isFinite(n) && n > 0 ? n : null;
+    }
+  }
+  return out as Partial<Fields>;
+}
+
 export function parseQualifyRequest(body: unknown, headers?: Headers): QualifyRequest {
   const b = unwrap(body);
   return {
     call_id: callIdFrom(b, headers),
     caller_number: callerFrom(b, headers),
-    fields: (b.fields as QualifyRequest["fields"]) ?? {},
+    fields: normaliseFields(b),
     transcript_so_far: String(b.transcript_so_far ?? ""),
     test_today: b.test_today as string | undefined,
     test_time: b.test_time as string | undefined,

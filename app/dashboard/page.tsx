@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getRepo, type CallRow } from "@/lib/db";
 import { computeMetrics } from "@/lib/metrics";
+import { loadPipeline, type Pipeline } from "@/lib/pipeline";
 
 export const dynamic = "force-dynamic";
 
@@ -28,8 +29,8 @@ const OUTCOME_CLASS: Record<string, string> = {
   dropped: "bad",
 };
 
-function Bars({ title, data }: { title: string; data: Record<string, number> }) {
-  const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
+function Bars({ title, data, keepOrder = false }: { title: string; data: Record<string, number>; keepOrder?: boolean }) {
+  const entries = keepOrder ? Object.entries(data) : Object.entries(data).sort((a, b) => b[1] - a[1]);
   const max = Math.max(1, ...entries.map(([, v]) => v));
   return (
     <section className="card">
@@ -46,6 +47,58 @@ function Bars({ title, data }: { title: string; data: Record<string, number> }) 
             </div>
           ))}
         </div>
+      )}
+    </section>
+  );
+}
+
+const monthLabel = (ym: string) =>
+  new Date(`${ym}-01T00:00:00Z`).toLocaleDateString("en-IN", { month: "short", year: "numeric", timeZone: "UTC" });
+
+function PipelineSection({ pipeline }: { pipeline: Pipeline | { error: string } }) {
+  return (
+    <section style={{ marginBottom: 16 }}>
+      <h2 style={{ fontSize: 17, margin: "8px 0 10px" }}>Sales pipeline · HubSpot (all time)</h2>
+      {"error" in pipeline ? (
+        <p className="muted">{pipeline.error}</p>
+      ) : (
+        <>
+          <div className="grid tiles">
+            <Tile label="Open deals" value={String(pipeline.openDeals)} sub={`${pipeline.openWithAmount} with a caller-stated budget`} />
+            <Tile label="Open pipeline value" value={inr(pipeline.openAmount)} sub="sum of caller-stated budgets only" />
+            <Tile label="Weighted forecast" value={inr(pipeline.weightedForecast)} sub="value × stage probability" />
+            <Tile label="Won" value={String(pipeline.wonDeals)} sub={inr(pipeline.wonAmount)} />
+          </div>
+          <div className="grid two">
+            <Bars title="Deals by stage" keepOrder data={Object.fromEntries(pipeline.stages.map((s) => [`${s.label} (${Math.round(s.probability * 100)}%)`, s.deals]))} />
+            <section className="card">
+              <h2>Forecast by expected completion month</h2>
+              {pipeline.byMonth.length === 0 ? (
+                <p className="muted">No open deals with a completion date yet.</p>
+              ) : (
+                <table>
+                  <thead>
+                    <tr><th>Month</th><th className="num">Deals</th><th className="num">Value</th><th className="num">Weighted</th></tr>
+                  </thead>
+                  <tbody>
+                    {pipeline.byMonth.map((r) => (
+                      <tr key={r.month}>
+                        <td>{monthLabel(r.month)}</td>
+                        <td className="num">{r.deals}</td>
+                        <td className="num">{inr(r.amount)}</td>
+                        <td className="num">{inr(r.weighted)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              {pipeline.noCloseDate > 0 && <p className="muted">{pipeline.noCloseDate} open deal(s) have no completion date.</p>}
+              <p className="muted" style={{ marginBottom: 0 }}>
+                Values exist only where a caller volunteered a budget; designers can add amounts in HubSpot after the consultation.
+              </p>
+            </section>
+          </div>
+        </>
       )}
     </section>
   );
@@ -101,7 +154,7 @@ function CallLog({ rows }: { rows: CallRow[] }) {
 export default async function Dashboard({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
   const { days: daysParam } = await searchParams;
   const days = PERIODS.includes(Number(daysParam)) ? Number(daysParam) : 30;
-  const rows = await getRepo(false).list({ limit: 2000, sinceDays: days });
+  const [rows, pipeline] = await Promise.all([getRepo(false).list({ limit: 2000, sinceDays: days }), loadPipeline()]);
   const m = computeMetrics(rows);
 
   return (
@@ -120,8 +173,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         ))}
       </nav>
 
-      {(
-        <>
+      <>
           <p className="secondary" style={{ marginTop: 0 }}>
             Every call is answered by the agent within seconds, day or night, so “answered within 5 minutes” is ~100% by design.
           </p>
@@ -164,8 +216,9 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
               )}
             </section>
           </div>
-        </>
-      )}
+      </>
+
+      <PipelineSection pipeline={pipeline} />
 
       <CallLog rows={rows} />
     </main>

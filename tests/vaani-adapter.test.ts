@@ -1,6 +1,6 @@
 // Vaani webhook parsing, using the payload shapes from docs.vaanivoice.ai/guides/webhook-setup.
 import { describe, expect, it } from "vitest";
-import { parseVaaniEvent, verifyRequest } from "@/lib/vaani";
+import { parseQualifyRequest, parseVaaniEvent, verifyRequest } from "@/lib/vaani";
 
 describe("Vaani webhook events", () => {
   it("call_started carries the caller's number", () => {
@@ -49,6 +49,21 @@ describe("Vaani webhook events", () => {
 
   it("other events are ignored", () => {
     expect(parseVaaniEvent({ event: "call_ringing", room_name: "r" })).toEqual({ kind: "ignored", event: "call_ringing" });
+  });
+
+  it("tool fields: aliases, flat or nested, value clean-up", () => {
+    const nested = parseQualifyRequest({
+      call_id: "room-1",
+      fields: { caller_name: "Kavya", home_or_office: "home", area: "Baner", completion_date: "by March", decision_maker: "authorised", sqft: "1,100 sq ft" },
+    });
+    expect(nested.fields).toEqual({
+      name: "Kavya", space_type: "home", locality: "Baner", completion_text: "by March", decision_maker: "authorised", designed_area_sqft: 1100,
+    });
+    const flat = parseQualifyRequest({ room_name: "room-2", name: "Arjun", location: "Aundh", area: "1100", scope: "full home", complaint: "true" });
+    expect(flat.call_id).toBe("room-2");
+    expect(flat.fields).toMatchObject({ name: "Arjun", locality: "Aundh", designed_area_sqft: 1100, scope: "full home", complaint: true });
+    // an exact name beats an alias
+    expect(parseQualifyRequest({ fields: { locality: "Kothrud", location: "Pune" } }).fields.locality).toBe("Kothrud");
   });
 
   it("secret accepted from header or ?key=", () => {

@@ -27,3 +27,19 @@ Vercel cron ──/api/cron/deliver▶ backup delivery if /call-ended never arri
 Open questions for Nikhil are `TODO(Qn)` comments next to the rules they affect (rubric §12).
 
 Setup: see `docs/SETUP.md`. Env vars: `.env.example`.
+
+## Live
+
+- App: https://aangan-voice-agent-ecru.vercel.app (`/dashboard`: call log, metrics, HubSpot pipeline + forecast)
+- Vaani setup: `vaani/tools.md`
+
+## Tests
+
+| Command | What |
+|---|---|
+| `npm test` | Everything offline: dates/timeline/budget, price guard (Suite 3), delivery, Vaani adapter, Suite 1 with the judge mocked |
+| `RUN_LIVE_JUDGE=1 npm run test:suite1` | Suite 1 (T01–T20 + synthetic) against live Gemini |
+| `RUN_LIVE_AGENT=1 npx vitest run tests/suite2` | Suite 2: the Vaani prompt played by Gemini, checking the agent's exact lines |
+| `RUN_DB=1 npx vitest run tests/neon-integration.test.ts` | Real Neon queries on the test branch |
+
+(PowerShell: `$env:RUN_LIVE_JUDGE=1; npm run test:suite1`.)
