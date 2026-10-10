@@ -1,0 +1,33 @@
+{
+  "name": "aangan-voice-agent",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:suite1": "vitest run tests/suite1",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "hubspot:setup": "tsx scripts/hubspot-setup.ts",
+    "calcom:setup": "tsx scripts/calcom-setup.ts",
+    "telegram:webhook": "tsx scripts/telegram-set-webhook.ts"
+  },
+  "dependencies": {
+    "@neon/config": "^1.8.6",
+    "@neon/env": "^1.5.3",
+    "@neondatabase/serverless": "^1.2.0",
+    "next": "^16.4.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "dotenv": "^18.0.7",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.3"
+  }
+}
